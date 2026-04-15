@@ -43,9 +43,9 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 # 1. FILE PATHS
 # =========================================================
 
-POP_FILE = "nt-government-regions_1986-to-2025.xlsx"
-CRIME_2020_FILE = "nt_crime_statistics_jan_2020.csv"
-CRIME_2025_FILE = "nt_crime_statistics_dec_2025.csv"
+POP_FILE = r"C:\Users\khuep\Downloads\YEN\UNITS\PRT564\nt-government-regions_1986-to-2025.xlsx"
+CRIME_2020_FILE = r"C:\Users\khuep\Downloads\YEN\UNITS\PRT564\nt_crime_statistics_jan_2020.csv"
+CRIME_2025_FILE = r"C:\Users\khuep\Downloads\YEN\UNITS\PRT564\nt_crime_statistics_dec_2025.csv"
 
 OUTPUT_DIR = Path("outputs")
 OUTPUT_DIR.mkdir(exist_ok=True)
@@ -528,8 +528,7 @@ plt.title("Total Monthly Offences Over Time")
 plt.xlabel("Time Index")
 plt.ylabel("Number of Offences")
 plt.tight_layout()
-plt.savefig(OUTPUT_DIR / "eda_line_crime_over_time.png", dpi=300)
-plt.close()
+plt.show()
 
 # 10.2 Bar chart: crime by region
 region_plot_df = (
@@ -545,8 +544,7 @@ plt.xlabel("Region")
 plt.ylabel("Number of Offences")
 plt.xticks(rotation=45, ha="right")
 plt.tight_layout()
-plt.savefig(OUTPUT_DIR / "eda_bar_crime_by_region.png", dpi=300)
-plt.close()
+plt.show()
 
 # 10.3 Scatter plot: population vs crime
 scatter_df = (
@@ -563,10 +561,135 @@ plt.title("Population vs Average Crime Rate")
 plt.xlabel("Population")
 plt.ylabel("Average Crime Rate")
 plt.tight_layout()
-plt.savefig(OUTPUT_DIR / "eda_scatter_population_vs_crime.png", dpi=300)
-plt.close()
+plt.show()
 
 print("EDA charts saved.")
+
+# 10.4 Alcohol ratio over time
+alcohol_trend = (
+    model_df.groupby(["year", "month"], as_index=False)["alcohol_ratio"]
+    .mean()
+    .sort_values(["year", "month"])
+)
+alcohol_trend["date_index"] = np.arange(len(alcohol_trend))
+
+plt.figure(figsize=(10, 5))
+plt.plot(alcohol_trend["date_index"], alcohol_trend["alcohol_ratio"])
+plt.title("Average Alcohol-Related Offence Ratio Over Time")
+plt.xlabel("Time Index")
+plt.ylabel("Alcohol Ratio")
+plt.tight_layout()
+plt.show()
+
+
+# 10.5 Domestic violence ratio over time
+dv_trend = (
+    model_df.groupby(["year", "month"], as_index=False)["dv_ratio"]
+    .mean()
+    .sort_values(["year", "month"])
+)
+dv_trend["date_index"] = np.arange(len(dv_trend))
+
+plt.figure(figsize=(10, 5))
+plt.plot(dv_trend["date_index"], dv_trend["dv_ratio"])
+plt.title("Average Domestic Violence Ratio Over Time")
+plt.xlabel("Time Index")
+plt.ylabel("DV Ratio")
+plt.tight_layout()
+plt.show()
+
+
+# 10.6 Monthly seasonality
+seasonality_df = (
+    model_df.groupby("month", as_index=False)["number_of_offences"]
+    .mean()
+    .sort_values("month")
+)
+
+plt.figure(figsize=(8, 5))
+plt.plot(seasonality_df["month"], seasonality_df["number_of_offences"], marker="o")
+plt.title("Average Monthly Offences by Month")
+plt.xlabel("Month")
+plt.ylabel("Average Number of Offences")
+plt.xticks(range(1, 13))
+plt.tight_layout()
+plt.show()
+
+
+# 10.7 Top offence categories
+if "offence_category" in crime_df.columns:
+    offence_cat_df = (
+        crime_df.groupby("offence_category", as_index=False)["number_of_offences"]
+        .sum()
+        .sort_values("number_of_offences", ascending=False)
+        .head(10)
+    )
+
+    plt.figure(figsize=(10, 5))
+    plt.bar(offence_cat_df["offence_category"], offence_cat_df["number_of_offences"])
+    plt.title("Top 10 Offence Categories by Number of Offences")
+    plt.xlabel("Offence Category")
+    plt.ylabel("Number of Offences")
+    plt.xticks(rotation=45, ha="right")
+    plt.tight_layout()
+    plt.show()
+
+
+# 10.8 Correlation heatmap
+corr_cols = [
+    "number_of_offences",
+    "crime_rate",
+    "population_total",
+    "young_ratio",
+    "male_ratio",
+    "aboriginal_ratio",
+    "population_growth_rate",
+    "alcohol_ratio",
+    "dv_ratio",
+    "lag_offence_1",
+    "lag_offence_2"
+]
+corr_cols = [c for c in corr_cols if c in model_df.columns]
+
+corr_matrix = model_df[corr_cols].corr()
+
+plt.figure(figsize=(10, 8))
+plt.imshow(corr_matrix, aspect="auto")
+plt.colorbar()
+plt.xticks(range(len(corr_cols)), corr_cols, rotation=45, ha="right")
+plt.yticks(range(len(corr_cols)), corr_cols)
+plt.title("Correlation Heatmap")
+plt.tight_layout()
+plt.show()
+
+
+# 10.9 Boxplot of crime rate by region
+region_groups = []
+region_labels = []
+
+for region, grp in model_df.groupby("region_key"):
+    region_groups.append(grp["crime_rate"].dropna())
+    region_labels.append(region)
+
+plt.figure(figsize=(10, 5))
+plt.boxplot(region_groups, labels=region_labels)
+plt.title("Crime Rate Distribution by Region")
+plt.xlabel("Region")
+plt.ylabel("Crime Rate")
+plt.xticks(rotation=45, ha="right")
+plt.tight_layout()
+plt.show()
+
+
+# 10.10 Lagged offence count vs current offence count
+if "lag_offence_1" in model_df.columns:
+    plt.figure(figsize=(8, 5))
+    plt.scatter(model_df["lag_offence_1"], model_df["number_of_offences"])
+    plt.title("Lagged Offence Count vs Current Offence Count")
+    plt.xlabel("Lagged Offence Count (t-1)")
+    plt.ylabel("Current Offence Count")
+    plt.tight_layout()
+    plt.show()
 
 
 # =========================================================
@@ -622,16 +745,6 @@ rq2_coef_df = pd.DataFrame({
 
 rq2_coef_df.to_csv(OUTPUT_DIR / "rq2_coefficients.csv", index=False)
 
-# Plot coefficients
-plt.figure(figsize=(10, 5))
-plt.bar(rq2_coef_df["feature"], rq2_coef_df["coefficient"])
-plt.title("RQ2 Regression Coefficients")
-plt.xlabel("Feature")
-plt.ylabel("Coefficient")
-plt.xticks(rotation=45, ha="right")
-plt.tight_layout()
-plt.savefig(OUTPUT_DIR / "rq2_coefficients_plot.png", dpi=300)
-plt.close()
 
 
 # =========================================================
@@ -694,6 +807,91 @@ print(rq3_lr_metrics)
 print(rq3_ridge_metrics)
 print(rq3_rf_metrics)
 
+# =========================================================
+# 12A. REGRESSION VISUALISATIONS
+# =========================================================
+
+# 12A.1 RQ2 coefficients plot
+coef_df = pd.DataFrame({
+    "feature": X_rq2.columns,
+    "coef": rq2_model.coef_
+}).sort_values("coef", key=abs, ascending=False)
+
+plt.figure(figsize=(10, 5))
+plt.bar(coef_df["feature"], coef_df["coef"])
+plt.xticks(rotation=45, ha="right")
+plt.title("Regression Coefficients (RQ2)")
+plt.xlabel("Feature")
+plt.ylabel("Coefficient")
+plt.tight_layout()
+plt.show()
+
+
+# 12A.2 RQ3 Actual vs Predicted - Linear Regression
+plt.figure(figsize=(8, 5))
+plt.scatter(y_test_rq3, rq3_lr_pred)
+plt.title("Actual vs Predicted (Linear Regression)")
+plt.xlabel("Actual Offence Count")
+plt.ylabel("Predicted Offence Count")
+plt.tight_layout()
+plt.show()
+
+
+# 12A.3 RQ3 Actual vs Predicted - Random Forest
+plt.figure(figsize=(8, 5))
+plt.scatter(y_test_rq3, rq3_rf_pred)
+plt.title("Actual vs Predicted (Random Forest)")
+plt.xlabel("Actual Offence Count")
+plt.ylabel("Predicted Offence Count")
+plt.tight_layout()
+plt.show()
+
+
+# 12A.4 RQ3 Residual Plot - Linear Regression
+residuals = y_test_rq3 - rq3_lr_pred
+
+plt.figure(figsize=(8, 5))
+plt.scatter(rq3_lr_pred, residuals)
+plt.axhline(y=0)
+plt.title("Residual Plot (Linear Regression)")
+plt.xlabel("Predicted Values")
+plt.ylabel("Residuals")
+plt.tight_layout()
+plt.show()
+
+
+# 12A.5 RQ3 Feature Importance - Random Forest
+importance_df = pd.DataFrame({
+    "feature": X_rq3.columns,
+    "importance": rq3_rf.feature_importances_
+}).sort_values("importance", ascending=False)
+
+plt.figure(figsize=(10, 5))
+plt.bar(importance_df["feature"], importance_df["importance"])
+plt.xticks(rotation=45, ha="right")
+plt.title("Feature Importance (Random Forest)")
+plt.xlabel("Feature")
+plt.ylabel("Importance")
+plt.tight_layout()
+plt.show()
+
+
+# 12A.6 Model comparison by MAE
+models = ["Linear", "Ridge", "Random Forest"]
+mae_values = [
+    rq3_lr_metrics["MAE"],
+    rq3_ridge_metrics["MAE"],
+    rq3_rf_metrics["MAE"]
+]
+
+plt.figure(figsize=(7, 5))
+plt.bar(models, mae_values)
+plt.title("Model Comparison by MAE")
+plt.xlabel("Model")
+plt.ylabel("MAE")
+plt.tight_layout()
+plt.show()
+
 rf_importance_df = pd.DataFrame({
     "feature": X_rq3.columns,
     "importance": rq3_rf.feature_importances_
@@ -703,13 +901,16 @@ rf_importance_df.to_csv(OUTPUT_DIR / "rq3_rf_feature_importance.csv", index=Fals
 
 # Actual vs predicted plots
 plt.figure(figsize=(8, 5))
-plt.scatter(y_test_rq3, rq3_lr_pred)
-plt.title("RQ3 Linear Regression: Actual vs Predicted")
-plt.xlabel("Actual Offence Count")
-plt.ylabel("Predicted Offence Count")
+plt.scatter(y_test_rq3, rq3_rf_pred)
+
+plt.plot([y_test_rq3.min(), y_test_rq3.max()],
+         [y_test_rq3.min(), y_test_rq3.max()])
+
+plt.title("RQ3 Random Forest: Actual vs Predicted")
+plt.xlabel("Actual")
+plt.ylabel("Predicted")
 plt.tight_layout()
-plt.savefig(OUTPUT_DIR / "rq3_lr_actual_vs_predicted.png", dpi=300)
-plt.close()
+plt.show()
 
 plt.figure(figsize=(8, 5))
 plt.scatter(y_test_rq3, rq3_rf_pred)
@@ -717,8 +918,7 @@ plt.title("RQ3 Random Forest: Actual vs Predicted")
 plt.xlabel("Actual Offence Count")
 plt.ylabel("Predicted Offence Count")
 plt.tight_layout()
-plt.savefig(OUTPUT_DIR / "rq3_rf_actual_vs_predicted.png", dpi=300)
-plt.close()
+plt.show()
 
 
 # =========================================================
@@ -733,8 +933,27 @@ metrics_df = pd.DataFrame([
 ])
 
 metrics_df.to_csv(OUTPUT_DIR / "model_metrics.csv", index=False)
-print("\nAll model metrics saved.")
+print("\n================ MODEL METRICS ================")
+print(metrics_df.round(4).to_string(index=False))
 
+# =========================================================
+# MODEL COMPARISON VISUALISATION
+# =========================================================
+
+models = ["Linear", "Ridge", "Random Forest"]
+mae_values = [
+    rq3_lr_metrics["MAE"],
+    rq3_ridge_metrics["MAE"],
+    rq3_rf_metrics["MAE"]
+]
+
+plt.figure(figsize=(6, 4))
+plt.bar(models, mae_values)
+plt.title("Model Comparison (MAE)")
+plt.xlabel("Model")
+plt.ylabel("MAE")
+plt.tight_layout()
+plt.show()
 
 # =========================================================
 # 14. STATISTICAL TESTING
@@ -756,7 +975,8 @@ ttest_df = pd.DataFrame({
 })
 
 ttest_df.to_csv(OUTPUT_DIR / "paired_ttest_results.csv", index=False)
-print("Paired t-test results saved.")
+print("\n================ PAIRED T-TEST RESULTS ================")
+print(ttest_df.round(4).to_string(index=False))
 
 
 # =========================================================
